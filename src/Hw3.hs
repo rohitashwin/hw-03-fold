@@ -24,7 +24,7 @@ module Hw3 where
 import Prelude hiding (replicate, sum)
 import Data.List (foldl')
 
-foldLeft :: (a -> b -> a) -> a -> [b] -> a
+foldLeft :: (b -> a -> b) -> b -> [a] -> b
 foldLeft = foldl'
 
 --------------------------------------------------------------------------------
@@ -42,8 +42,8 @@ foldLeft = foldl'
 sqSum :: [Int] -> Int
 sqSum xs = foldLeft f base xs
   where
-   f a x = error "TBD: sqSum f"
-   base  = error "TBD: sqSum base"
+    f acc x = acc + x * x 
+    base    = 0
 
 --------------------------------------------------------------------------------
 -- | `pipe [f1,...,fn] x` should return `f1(f2(...(fn x)))`
@@ -58,10 +58,10 @@ sqSum xs = foldLeft f base xs
 -- 24
 
 pipe :: [(a -> a)] -> (a -> a)
-pipe fs   = foldLeft f base fs
+pipe fs = foldLeft f base fs
   where
-    f a x = error "TBD: pipe: f"
-    base  = error "TBD: pipe: base"
+    f acc x = \y -> acc (x y)
+    base    = \x -> x
 
 --------------------------------------------------------------------------------
 -- | `sepConcat sep [s1,...,sn]` returns `s1 ++ sep ++ s2 ++ ... ++ sep ++ sn`
@@ -79,9 +79,9 @@ sepConcat :: String -> [String] -> String
 sepConcat sep []     = ""
 sepConcat sep (x:xs) = foldLeft f base l
   where
-    f a x            = error "TBD:sepConcat:f"
-    base             = error "TBD:sepConcat:base"
-    l                = error "TBD:l"
+    f acc x = acc ++ sep ++ x
+    base    = x
+    l       = xs
 
 intString :: Int -> String
 intString = show
@@ -100,7 +100,7 @@ intString = show
 -- "[[1, 2, 3], [4, 5], [6], []]"
 
 stringOfList :: (a -> String) -> [a] -> String
-stringOfList f xs = error "TBD:stringOfList"
+stringOfList f xs = "[" ++ sepConcat ", " (map f xs) ++ "]"
 
 --------------------------------------------------------------------------------
 -- | `clone x n` returns a `[x,x,...,x]` containing `n` copies of `x`
@@ -112,7 +112,9 @@ stringOfList f xs = error "TBD:stringOfList"
 -- ["foo", "foo"]
 
 clone :: a -> Int -> [a]
-clone x n = error "TBD:clone"
+clone x n 
+  | n <= 0    = []
+  | otherwise = x : clone x (n-1)
 
 type BigInt = [Int]
 
@@ -128,7 +130,10 @@ type BigInt = [Int]
 -- [1,0,0,2] [0,0,9,9]
 
 padZero :: BigInt -> BigInt -> (BigInt, BigInt)
-padZero l1 l2 = error "TBD:padZero"
+padZero l1 l2  
+  | length l1 > length l2 = (l1, clone 0 (length l1 - length l2) ++ l2)
+  | length l1 < length l2 = (clone 0 (length l2 - length l1) ++ l1, l2)
+  | otherwise             = (l1, l2)
 
 --------------------------------------------------------------------------------
 -- | `removeZero ds` strips out all leading `0` from the left-side of `ds`.
@@ -143,8 +148,10 @@ padZero l1 l2 = error "TBD:padZero"
 -- []
 
 removeZero :: BigInt -> BigInt
-removeZero ds = error "TBD:removeZero"
-
+removeZero [] = []
+removeZero (d:ds)
+  | d == 0    = removeZero ds
+  | otherwise = d:ds
 
 --------------------------------------------------------------------------------
 -- | `bigAdd n1 n2` returns the `BigInt` representing the sum of `n1` and `n2`.
@@ -159,11 +166,11 @@ bigAdd :: BigInt -> BigInt -> BigInt
 bigAdd l1 l2     = removeZero res
   where
     (l1', l2')   = padZero l1 l2
-    res          = foldLeft f base args
-    f a x        = error "TBD:bigAdd:f"
-    base         = error "TBD:bigAdd:base"
-    args         = error "TBD:bigAdd:args"
-
+    res          = foldl f base args
+    f [] _       = error "empty list"
+    f (c : s) (x,y) = let (q, r) = divMod (x + y + c) 10 in q : r : s
+    base         = [0]
+    args         = reverse (zip l1' l2')
 
 --------------------------------------------------------------------------------
 -- | `mulByDigit i n` returns the result of multiplying
@@ -173,7 +180,10 @@ bigAdd l1 l2     = removeZero res
 -- [8,9,9,9,1]
 
 mulByDigit :: Int -> BigInt -> BigInt
-mulByDigit i n = error "TBD:mulByDigit"
+mulByDigit i n
+  | i == 0    = []
+  | i == 1    = n
+  | otherwise = bigAdd (mulByDigit (i - 1) n) n
 
 --------------------------------------------------------------------------------
 -- | `bigMul n1 n2` returns the `BigInt` representing the product of `n1` and `n2`.
@@ -187,7 +197,7 @@ mulByDigit i n = error "TBD:mulByDigit"
 bigMul :: BigInt -> BigInt -> BigInt
 bigMul l1 l2 = res
   where
-    res      = foldLeft f base args
-    f a x    = error "TBD:bigMul:f"
-    base     = error "TBD:bigMul:base"
-    args     = error "TBD:bigMul:args"
+    (_, res) = foldl' f b l2
+    f (p, a) x = (p + 1, bigAdd a (mulByDigit x l1 ++ clone 0 p))
+    b = (0, [])
+    clone x n = if n <= 0 then [] else x : clone x (n-1)
